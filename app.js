@@ -1,11 +1,25 @@
 // ==========================================
-// Supabase Configuration
+// 🔴 שלב 1: הדבק את המפתחות שלך מ-Supabase כאן!
 // ==========================================
-// 🔴 חשוב! החלף את הערכים האלה בערכים שלך מ-Supabase
-const SUPABASE_URL = 'YOUR_PROJECT_URL';  // https://zqvxvyvtabnypqgscrat.supabase.co
-const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY'; // sb_publishable_rbpfGQKxQ0yOF2uycKZB4g_FWCdSt80
+// איך לקבל את המפתחות:
+// 1. כנס ל-supabase.com
+// 2. פתח את הפרויקט kids-gallery
+// 3. לחץ על Settings (גלגל שיניים) → API
+// 4. העתק את Project URL וה-anon public key
+// 5. הדבק אותם כאן למטה במקום הטקסט העברי:
 
-// יצירת Client
+const SUPABASE_URL = 'הדבק_כאן_את_ה_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'הדבק_כאן_את_ה_ANON_KEY';
+
+// ⚠️ דוגמה איך זה צריך להיראות אחרי ההחלפה:
+// const SUPABASE_URL = https://zqvxvyvtabnypqgscrat.supabase.co;
+// const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpxdnh2eXZ0YWJueXBxZ3NjcmF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDUyNDIsImV4cCI6MjA4NDM4MTI0Mn0.cj9CCXFtNMyD7sKpu6XatlOyZeLlyHL0ZkfaraIzt_w;
+
+// ==========================================
+// אל תשנה כלום מכאן ואילך!
+// ==========================================
+
+// יצירת Supabase Client
 const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -212,20 +226,3 @@ async function init() {
 
 // טען את האפליקציה כשהדף מוכן
 document.addEventListener('DOMContentLoaded', init);
-
-// ==========================================
-// Real-time Updates (Optional)
-// ==========================================
-// אם תרצה עדכונים חיים כשמישהו מוסיף ילד חדש:
-/*
-supabaseClient
-    .channel('kids-changes')
-    .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'kids' },
-        (payload) => {
-            console.log('Change detected:', payload);
-            loadKids(); // רענן את הגלריה
-        }
-    )
-    .subscribe();
-*/
