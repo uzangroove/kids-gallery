@@ -12,9 +12,8 @@ const SUPABASE_URL = 'הדבק_כאן_את_ה_PROJECT_URL';
 const SUPABASE_ANON_KEY = 'הדבק_כאן_את_ה_ANON_KEY';
 
 // ⚠️ דוגמה איך זה צריך להיראות אחרי ההחלפה:
-// const SUPABASE_URL = https://zqvxvyvtabnypqgscrat.supabase.co;
-// const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpxdnh2eXZ0YWJueXBxZ3NjcmF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDUyNDIsImV4cCI6MjA4NDM4MTI0Mn0.cj9CCXFtNMyD7sKpu6XatlOyZeLlyHL0ZkfaraIzt_w;
-
+const SUPABASE_URL = 'https://zqvxvyvtabnypqgscrat.supabase.co';  // ✅
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpxdnh2eXZ0YWJueXBxZ3NjcmF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDUyNDIsImV4cCI6MjA4NDM4MTI0Mn0.cj9CCXFtNMyD7sKpu6XatlOyZeLlyHL0ZkfaraIzt_w';  // ✅
 // ==========================================
 // אל תשנה כלום מכאן ואילך!
 // ==========================================
