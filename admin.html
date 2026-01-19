@@ -223,6 +223,15 @@
             <p class="subtitle">מערכת ניהול מלאה - הוספה, עריכה ומחיקה</p>
         </div>
         
+        <!-- Connection Test -->
+        <div class="card">
+            <h2>🔌 בדיקת חיבור ל-Supabase</h2>
+            <div id="connection-status" style="padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #f3f4f6;">
+                <p style="margin: 0; color: #666;">בודק חיבור...</p>
+            </div>
+            <button onclick="testSupabaseConnection()" class="btn btn-secondary">🔄 בדוק שוב</button>
+        </div>
+        
         <!-- הוספת ילד חדש -->
         <div class="card">
             <h2>➕ הוספת ילד חדש</h2>
@@ -311,8 +320,8 @@
         // 4. העתק את Project URL וה-anon public key
         // 5. הדבק אותם כאן למטה במקום הטקסט העברי:
         
-        const SUPABASE_URL = 'הדבק_כאן_את_ה_PROJECT_URL';
-        const SUPABASE_ANON_KEY = 'הדבק_כאן_את_ה_ANON_KEY';
+        const SUPABASE_URL = 'https://zqvxvyvtabnypqgscrat.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpxdnh2eXZ0YWJueXBxZ3NjcmF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDUyNDIsImV4cCI6MjA4NDM4MTI0Mn0.cj9CCXFtNMyD7sKpu6XatlOyZeLlyHL0ZkfaraIzt_w';
         
         // ⚠️ דוגמה איך זה צריך להיראות אחרי ההחלפה:
        // const SUPABASE_URL = https://zqvxvyvtabnypqgscrat.supabase.co;
@@ -322,8 +331,89 @@
         // אל תשנה כלום מכאן ואילך!
         // ==========================================
         
-        const { createClient } = supabase;
-        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Initialize Supabase client - ensure it's done after DOM and Supabase library are ready
+        let supabaseClient = null;
+        
+        // Helper function to get supabaseClient safely
+        function getSupabaseClient() {
+            if (!supabaseClient) {
+                throw new Error('Supabase client not initialized. Please wait for the connection test to complete.');
+            }
+            return supabaseClient;
+        }
+        
+        function initializeSupabase() {
+            if (typeof supabase === 'undefined') {
+                console.error('Supabase library not loaded yet');
+                return false;
+            }
+            
+            // Validate configuration
+            const url = String(SUPABASE_URL).trim();
+            const key = String(SUPABASE_ANON_KEY).trim();
+            
+            if (url === 'הדבק_כאן_את_ה_PROJECT_URL' || key === 'הדבק_כאן_את_ה_ANON_KEY') {
+                console.error('Please configure SUPABASE_URL and SUPABASE_ANON_KEY');
+                return false;
+            }
+            
+            if (!url || url.length === 0) {
+                console.error('SUPABASE_URL is empty');
+                return false;
+            }
+            
+            if (!key || key.length === 0) {
+                console.error('SUPABASE_ANON_KEY is empty');
+                return false;
+            }
+            
+            // Validate URL format
+            try {
+                const urlObj = new URL(url);
+                if (urlObj.protocol !== 'https:' && urlObj.protocol !== 'http:') {
+                    console.error('SUPABASE_URL must start with http:// or https://');
+                    return false;
+                }
+            } catch (e) {
+                console.error('Invalid SUPABASE_URL format:', e.message);
+                console.error('URL provided:', url);
+                return false;
+            }
+            
+            try {
+                const { createClient } = supabase;
+                
+                // Log values for debugging (without exposing full key)
+                console.log('Initializing Supabase with:');
+                console.log('URL:', url);
+                console.log('URL length:', url.length);
+                console.log('Key length:', key.length);
+                console.log('Key starts with:', key.substring(0, 20) + '...');
+                
+                // Verify URL one more time before creating client
+                if (!url || typeof url !== 'string' || url.trim().length === 0) {
+                    throw new Error('URL is empty or invalid');
+                }
+                
+                if (!key || typeof key !== 'string' || key.trim().length === 0) {
+                    throw new Error('Key is empty or invalid');
+                }
+                
+                supabaseClient = createClient(url.trim(), key.trim());
+                console.log('✅ Supabase client initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('❌ Error initializing Supabase client:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    url: url,
+                    urlType: typeof url,
+                    urlLength: url ? url.length : 0,
+                    keyLength: key ? key.length : 0
+                });
+                return false;
+            }
+        }
         
         // ==========================================
         // Toast Notifications
@@ -345,19 +435,58 @@
         }
         
         // ==========================================
+        // Sanitize File Path - Convert Hebrew/Unicode to ASCII-safe
+        // ==========================================
+        function sanitizePath(path) {
+            // Supabase Storage requires ASCII-safe keys
+            // We'll use a combination of base64 encoding for non-ASCII parts
+            // But keep the structure readable
+            
+            // Split path into parts (name and extension)
+            const parts = path.split('.');
+            const extension = parts.length > 1 ? '.' + parts.pop() : '';
+            const namePart = parts.join('.');
+            
+            // Check if name contains non-ASCII characters
+            const hasNonASCII = /[^\x00-\x7F]/.test(namePart);
+            
+            if (hasNonASCII) {
+                // Convert Hebrew/Unicode to base64, but keep it readable
+                // Use a simple encoding: convert to base64 and replace special chars
+                const encoded = btoa(unescape(encodeURIComponent(namePart)))
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=/g, '');
+                return encoded + extension;
+            }
+            
+            // If already ASCII-safe, return as is
+            return path;
+        }
+        
+        // ==========================================
         // File Upload Helper
         // ==========================================
         async function uploadFile(file, path) {
-            const { data, error } = await supabaseClient.storage
-                .from('kids-media')
-                .upload(path, file, { upsert: true });
+            const client = getSupabaseClient();
             
-            if (error) throw error;
+            // Sanitize the path to ensure it's ASCII-safe
+            const sanitizedPath = sanitizePath(path);
+            console.log(`Uploading file: ${path} -> ${sanitizedPath}`);
             
-            // קבל URL ציבורי
-            const { data: { publicUrl } } = supabaseClient.storage
+            const { data, error } = await client.storage
                 .from('kids-media')
-                .getPublicUrl(path);
+                .upload(sanitizedPath, file, { upsert: true });
+            
+            if (error) {
+                console.error('Upload error:', error);
+                throw error;
+            }
+            
+            // קבל URL ציבורי - use sanitized path
+            const { data: { publicUrl } } = client.storage
+                .from('kids-media')
+                .getPublicUrl(sanitizedPath);
             
             return publicUrl;
         }
@@ -365,63 +494,84 @@
         // ==========================================
         // Add Kid Form
         // ==========================================
-        document.getElementById('add-kid-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            submitBtn.disabled = true;
-            submitBtn.textContent = '💾 שומר...';
-            
-            try {
-                const name = document.getElementById('kid-name').value.trim();
-                const beforeFile = document.getElementById('image-before').files[0];
-                const afterFile = document.getElementById('image-after').files[0];
-                const videoFile = document.getElementById('video-file').files[0];
+        function setupAddKidForm() {
+            document.getElementById('add-kid-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
                 
-                let beforeUrl = null, afterUrl = null, videoUrl = null;
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.textContent = '💾 שומר...';
                 
-                // העלה קבצים
-                if (beforeFile) {
-                    beforeUrl = await uploadFile(beforeFile, `${name}_before.${beforeFile.name.split('.').pop()}`);
+                try {
+                    const client = getSupabaseClient();
+                    const name = document.getElementById('kid-name').value.trim();
+                    const beforeFile = document.getElementById('image-before').files[0];
+                    const afterFile = document.getElementById('image-after').files[0];
+                    const videoFile = document.getElementById('video-file').files[0];
+                    
+                    let beforeUrl = null, afterUrl = null, videoUrl = null;
+                    
+                    // העלה קבצים
+                    if (beforeFile) {
+                        beforeUrl = await uploadFile(beforeFile, `${name}_before.${beforeFile.name.split('.').pop()}`);
+                    }
+                    
+                    if (afterFile) {
+                        afterUrl = await uploadFile(afterFile, `${name}_after.${afterFile.name.split('.').pop()}`);
+                    }
+                    
+                    if (videoFile) {
+                        videoUrl = await uploadFile(videoFile, `${name}_video.${videoFile.name.split('.').pop()}`);
+                    }
+                    
+                    // שמור בדאטאבייס
+                    const { error } = await client
+                        .from('kids')
+                        .insert({
+                            name: name,
+                            image_before: beforeUrl,
+                            image_after: afterUrl,
+                            video_url: videoUrl
+                        });
+                    
+                    if (error) throw error;
+                    
+                    showToast(`הילד ${name} נוסף בהצלחה!`, 'success');
+                    e.target.reset();
+                    loadKids();
+                    
+                } catch (error) {
+                    console.error('Error adding kid:', error);
+                    let errorMessage = 'שגיאה בהוספת ילד';
+                    if (error.message) {
+                        errorMessage += ': ' + error.message;
+                    }
+                    if (error.status === 401) {
+                        errorMessage += ' (בעיית הרשאות - בדוק את ה-RLS policies ב-Supabase)';
+                    }
+                    if (error.message && error.message.includes('Invalid key')) {
+                        errorMessage += ' - שם הקובץ מכיל תווים לא תקינים';
+                    }
+                    showToast(errorMessage, 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '💾 שמור ילד';
                 }
-                
-                if (afterFile) {
-                    afterUrl = await uploadFile(afterFile, `${name}_after.${afterFile.name.split('.').pop()}`);
-                }
-                
-                if (videoFile) {
-                    videoUrl = await uploadFile(videoFile, `${name}_video.${videoFile.name.split('.').pop()}`);
-                }
-                
-                // שמור בדאטאבייס
-                const { error } = await supabaseClient
-                    .from('kids')
-                    .insert({
-                        name: name,
-                        image_before: beforeUrl,
-                        image_after: afterUrl,
-                        video_url: videoUrl
-                    });
-                
-                if (error) throw error;
-                
-                showToast(`הילד ${name} נוסף בהצלחה!`, 'success');
-                e.target.reset();
-                loadKids();
-                
-            } catch (error) {
-                console.error(error);
-                showToast('שגיאה בהוספת ילד: ' + error.message, 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = '💾 שמור ילד';
-            }
-        });
+            });
+        }
         
         // ==========================================
         // Folder Upload
         // ==========================================
         async function processFolderUpload() {
+            let client;
+            try {
+                client = getSupabaseClient();
+            } catch (error) {
+                showToast('Supabase client not initialized. Please wait for the connection test to complete.', 'error');
+                return;
+            }
+            
             const files = document.getElementById('folder-upload').files;
             if (!files.length) {
                 showToast('בחר תיקייה תחילה', 'error');
@@ -466,7 +616,7 @@
                         videoUrl = await uploadFile(files.video, `${kidName}_video.${files.video.name.split('.').pop()}`);
                     }
                     
-                    await supabaseClient.from('kids').insert({
+                    await client.from('kids').insert({
                         name: kidName,
                         image_before: beforeUrl,
                         image_after: afterUrl,
@@ -494,7 +644,8 @@
             container.innerHTML = '';
             
             try {
-                const { data, error } = await supabaseClient
+                const client = getSupabaseClient();
+                const { data, error } = await client
                     .from('kids')
                     .select('*')
                     .order('name', { ascending: true });
@@ -506,17 +657,30 @@
                     return;
                 }
                 
-                let html = '<table><thead><tr><th>שם</th><th>תמונה לפני</th><th>תמונה אחרי</th><th>וידאו</th><th>פעולות</th></tr></thead><tbody>';
+                let html = '<table><thead><tr><th>שם</th><th>תמונה לפני</th><th>תמונה אחרי</th><th>וידאו</th><th>קישור שיתוף</th><th>פעולות</th></tr></thead><tbody>';
+                
+                // Get base URL for sharing
+                const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', 'index.html');
                 
                 data.forEach(kid => {
+                    const shareUrl = `${baseUrl}?kid=${encodeURIComponent(kid.name)}`;
+                    // Escape quotes for onclick
+                    const escapedUrl = shareUrl.replace(/'/g, "\\'");
+                    const escapedName = kid.name.replace(/'/g, "\\'");
+                    const escapedId = kid.id.toString().replace(/'/g, "\\'");
+                    
                     html += `
                         <tr>
                             <td><strong>${kid.name}</strong></td>
-                            <td>${kid.image_before ? '<img src="' + kid.image_before + '" class="preview-img">' : '❌'}</td>
-                            <td>${kid.image_after ? '<img src="' + kid.image_after + '" class="preview-img">' : '❌'}</td>
+                            <td>${kid.image_before ? '<img src="' + kid.image_before.replace(/'/g, "&#39;") + '" class="preview-img">' : '❌'}</td>
+                            <td>${kid.image_after ? '<img src="' + kid.image_after.replace(/'/g, "&#39;") + '" class="preview-img">' : '❌'}</td>
                             <td>${kid.video_url ? '✅' : '❌'}</td>
                             <td>
-                                <button class="btn btn-danger" onclick="deleteKid('${kid.id}', '${kid.name}')">🗑️ מחק</button>
+                                <button class="btn btn-secondary" onclick="copyShareLink('${escapedUrl}', '${escapedName}')" style="font-size: 0.9rem; padding: 8px 15px;">🔗 העתק קישור</button>
+                                <div style="font-size: 0.75rem; color: #666; margin-top: 5px; word-break: break-all; max-width: 200px;">${shareUrl}</div>
+                            </td>
+                            <td>
+                                <button class="btn btn-danger" onclick="deleteKid('${escapedId}', '${escapedName}')">🗑️ מחק</button>
                             </td>
                         </tr>
                     `;
@@ -527,10 +691,44 @@
                 
             } catch (error) {
                 console.error(error);
-                showToast('שגיאה בטעינת ילדים', 'error');
+                container.innerHTML = `<p style="text-align: center; padding: 40px; color: #EF4444;">⚠️ ${error.message}</p>`;
+                showToast('שגיאה בטעינת ילדים: ' + error.message, 'error');
             } finally {
                 loading.style.display = 'none';
             }
+        }
+        
+        // ==========================================
+        // Copy Share Link
+        // ==========================================
+        function copyShareLink(url, kidName) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast(`קישור של ${kidName} הועתק ללוח!`, 'success');
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    fallbackCopyShareLink(url, kidName);
+                });
+            } else {
+                fallbackCopyShareLink(url, kidName);
+            }
+        }
+        
+        function fallbackCopyShareLink(url, kidName) {
+            const textArea = document.createElement('textarea');
+            textArea.value = url;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast(`קישור של ${kidName} הועתק ללוח!`, 'success');
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                prompt(`העתק את הקישור של ${kidName}:`, url);
+            }
+            document.body.removeChild(textArea);
         }
         
         // ==========================================
@@ -540,7 +738,8 @@
             if (!confirm(`בטוח שרוצה למחוק את ${name}?`)) return;
             
             try {
-                const { error } = await supabaseClient
+                const client = getSupabaseClient();
+                const { error } = await client
                     .from('kids')
                     .delete()
                     .eq('id', id);
@@ -557,6 +756,33 @@
         }
         
         // ==========================================
+        // Ensure Settings Row Exists
+        // ==========================================
+        async function ensureSettingsExists() {
+            try {
+                const client = getSupabaseClient();
+                const { data, error: selectError } = await client
+                    .from('settings')
+                    .select('id')
+                    .limit(1)
+                    .single();
+                
+                // If no row exists, create one
+                if (selectError || !data) {
+                    const { error: insertError } = await client
+                        .from('settings')
+                        .insert({ logo_garden: null, logo_personal: null });
+                    
+                    if (insertError) throw insertError;
+                }
+                return true;
+            } catch (error) {
+                console.error('Error ensuring settings exists:', error);
+                return false;
+            }
+        }
+        
+        // ==========================================
         // Upload Logo
         // ==========================================
         async function uploadLogo(type) {
@@ -569,14 +795,37 @@
             }
             
             try {
+                const client = getSupabaseClient();
+                
+                // Ensure settings table has a row
+                await ensureSettingsExists();
+                
                 const url = await uploadFile(file, `logo_${type}.${file.name.split('.').pop()}`);
                 
                 const field = type === 'garden' ? 'logo_garden' : 'logo_personal';
                 
-                const { error } = await supabaseClient
+                // Get existing settings or create new one
+                const { data: existingSettings, error: selectError } = await client
                     .from('settings')
-                    .update({ [field]: url })
-                    .eq('id', (await supabaseClient.from('settings').select('id').single()).data.id);
+                    .select('id')
+                    .limit(1)
+                    .single();
+                
+                let error;
+                if (existingSettings && existingSettings.id) {
+                    // Update existing row
+                    const { error: updateError } = await client
+                        .from('settings')
+                        .update({ [field]: url })
+                        .eq('id', existingSettings.id);
+                    error = updateError;
+                } else {
+                    // Insert new row
+                    const { error: insertError } = await client
+                        .from('settings')
+                        .insert({ [field]: url });
+                    error = insertError;
+                }
                 
                 if (error) throw error;
                 
@@ -584,14 +833,248 @@
                 
             } catch (error) {
                 console.error(error);
-                showToast('שגיאה בהעלאת לוגו', 'error');
+                showToast('שגיאה בהעלאת לוגו: ' + error.message, 'error');
             }
+        }
+        
+        // ==========================================
+        // Test Supabase Connection
+        // ==========================================
+        async function testSupabaseConnection() {
+            const statusDiv = document.getElementById('connection-status');
+            statusDiv.innerHTML = '<p style="margin: 0; color: #666;">🔄 בודק חיבור...</p>';
+            statusDiv.style.background = '#f3f4f6';
+            
+            const results = [];
+            
+            // Test 1: Check if Supabase library is loaded
+            if (typeof supabase === 'undefined') {
+                results.push({
+                    test: 'ספריית Supabase',
+                    status: 'error',
+                    message: '❌ הספרייה לא נטענה. בדוק את החיבור לאינטרנט.'
+                });
+                updateConnectionStatus(statusDiv, results);
+                return;
+            } else {
+                results.push({
+                    test: 'ספריית Supabase',
+                    status: 'success',
+                    message: '✅ הספרייה נטענה בהצלחה'
+                });
+            }
+            
+            // Test 2: Check configuration
+            const url = String(SUPABASE_URL).trim();
+            const key = String(SUPABASE_ANON_KEY).trim();
+            
+            if (url === 'הדבק_כאן_את_ה_PROJECT_URL' || key === 'הדבק_כאן_את_ה_ANON_KEY') {
+                results.push({
+                    test: 'קונפיגורציה',
+                    status: 'error',
+                    message: '❌ המפתחות לא הוגדרו. עדכן את SUPABASE_URL ו-SUPABASE_ANON_KEY'
+                });
+                updateConnectionStatus(statusDiv, results);
+                return;
+            }
+            
+            if (!url || url.length === 0) {
+                results.push({
+                    test: 'קונפיגורציה',
+                    status: 'error',
+                    message: '❌ SUPABASE_URL ריק'
+                });
+                updateConnectionStatus(statusDiv, results);
+                return;
+            }
+            
+            if (!key || key.length === 0) {
+                results.push({
+                    test: 'קונפיגורציה',
+                    status: 'error',
+                    message: '❌ SUPABASE_ANON_KEY ריק'
+                });
+                updateConnectionStatus(statusDiv, results);
+                return;
+            }
+            
+            // Validate URL format
+            try {
+                const urlObj = new URL(url);
+                if (urlObj.protocol !== 'https:' && urlObj.protocol !== 'http:') {
+                    results.push({
+                        test: 'קונפיגורציה',
+                        status: 'error',
+                        message: '❌ ה-URL חייב להתחיל ב-http:// או https://'
+                    });
+                    updateConnectionStatus(statusDiv, results);
+                    return;
+                }
+                results.push({
+                    test: 'קונפיגורציה',
+                    status: 'success',
+                    message: `✅ URL תקין: ${url.substring(0, 40)}...`
+                });
+            } catch (e) {
+                results.push({
+                    test: 'קונפיגורציה',
+                    status: 'error',
+                    message: `❌ פורמט URL לא תקין: ${e.message}`
+                });
+                updateConnectionStatus(statusDiv, results);
+                return;
+            }
+            
+            // Test 3: Initialize client
+            try {
+                if (!supabaseClient) {
+                    if (!initializeSupabase()) {
+                        results.push({
+                            test: 'אתחול לקוח',
+                            status: 'error',
+                            message: '❌ שגיאה באתחול הלקוח'
+                        });
+                        updateConnectionStatus(statusDiv, results);
+                        return;
+                    }
+                }
+                // Try to get client to verify it works
+                getSupabaseClient();
+                results.push({
+                    test: 'אתחול לקוח',
+                    status: 'success',
+                    message: '✅ הלקוח אותחל בהצלחה'
+                });
+            } catch (error) {
+                results.push({
+                    test: 'אתחול לקוח',
+                    status: 'error',
+                    message: `❌ שגיאה: ${error.message}`
+                });
+                updateConnectionStatus(statusDiv, results);
+                return;
+            }
+            
+            // Test 4: Test database connection (try to query kids table)
+            try {
+                const client = getSupabaseClient();
+                const { data, error } = await client
+                    .from('kids')
+                    .select('id')
+                    .limit(1);
+                
+                if (error) {
+                    results.push({
+                        test: 'חיבור למסד נתונים',
+                        status: 'error',
+                        message: `❌ שגיאה: ${error.message}`
+                    });
+                } else {
+                    results.push({
+                        test: 'חיבור למסד נתונים',
+                        status: 'success',
+                        message: '✅ חיבור למסד הנתונים עובד'
+                    });
+                }
+            } catch (error) {
+                results.push({
+                    test: 'חיבור למסד נתונים',
+                    status: 'error',
+                    message: `❌ שגיאה: ${error.message}`
+                });
+            }
+            
+            // Test 5: Test storage access
+            try {
+                const client = getSupabaseClient();
+                const { data, error } = await client
+                    .storage
+                    .from('kids-media')
+                    .list('', { limit: 1 });
+                
+                if (error) {
+                    results.push({
+                        test: 'גישה לאחסון',
+                        status: 'error',
+                        message: `❌ שגיאה: ${error.message}`
+                    });
+                } else {
+                    results.push({
+                        test: 'גישה לאחסון',
+                        status: 'success',
+                        message: '✅ גישה לאחסון עובדת'
+                    });
+                }
+            } catch (error) {
+                results.push({
+                    test: 'גישה לאחסון',
+                    status: 'error',
+                    message: `❌ שגיאה: ${error.message}`
+                });
+            }
+            
+            updateConnectionStatus(statusDiv, results);
+        }
+        
+        function updateConnectionStatus(statusDiv, results) {
+            const allSuccess = results.every(r => r.status === 'success');
+            const hasError = results.some(r => r.status === 'error');
+            
+            let html = '<div style="line-height: 1.8;">';
+            results.forEach(result => {
+                const color = result.status === 'success' ? '#10B981' : '#EF4444';
+                html += `<p style="margin: 5px 0; color: ${color};"><strong>${result.test}:</strong> ${result.message}</p>`;
+            });
+            html += '</div>';
+            
+            if (allSuccess) {
+                statusDiv.style.background = '#d1fae5';
+                html += '<p style="margin-top: 10px; color: #10B981; font-weight: bold;">✅ כל הבדיקות עברו בהצלחה!</p>';
+            } else if (hasError) {
+                statusDiv.style.background = '#fee2e2';
+                html += '<p style="margin-top: 10px; color: #EF4444; font-weight: bold;">❌ יש בעיות בחיבור. בדוק את הקונסול לפרטים נוספים.</p>';
+            }
+            
+            statusDiv.innerHTML = html;
         }
         
         // ==========================================
         // Initialize
         // ==========================================
-        loadKids();
+        // Wait for DOM and Supabase library to be ready
+        function waitForSupabase(maxAttempts = 30, attempt = 0) {
+            // Check if Supabase library is loaded and has createClient method
+            if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
+                if (initializeSupabase()) {
+                    setupAddKidForm();
+                    loadKids();
+                    // Run connection test automatically after initialization
+                    setTimeout(() => testSupabaseConnection(), 500);
+                } else {
+                    showToast('שגיאה באתחול Supabase. בדוק את הקונפיגורציה.', 'error');
+                    setTimeout(() => testSupabaseConnection(), 500);
+                }
+            } else if (attempt < maxAttempts) {
+                // Wait a bit longer on first attempts, then check more frequently
+                const delay = attempt < 5 ? 200 : 100;
+                setTimeout(() => waitForSupabase(maxAttempts, attempt + 1), delay);
+            } else {
+                showToast('שגיאה בטעינת Supabase. בדוק את החיבור לאינטרנט.', 'error');
+                setTimeout(() => testSupabaseConnection(), 500);
+            }
+        }
+        
+        function initApp() {
+            waitForSupabase();
+        }
+        
+        // Wait for DOM to be ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            // DOM is already ready
+            initApp();
+        }
     </script>
 </body>
 </html>
