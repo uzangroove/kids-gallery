@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול גלריית הילדים</title>
+    
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        
+        input[type="text"],
+        input[type="file"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        select:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: #10B981;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #EF4444;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6B7280;
+            color: white;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: right;
+            font-weight: bold;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        tr:hover {
+            background: #f9fafb;
+        }
+        
+        .preview-img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .toast.success { border-left: 4px solid #10B981; }
+        .toast.error { border-left: 4px solid #EF4444; }
+        .toast.info { border-left: 4px solid #0EA5E9; }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎨 ניהול גלריית הילדים</h1>
+            <p class="subtitle">מערכת ניהול מלאה - הוספה, עריכה ומחיקה</p>
+        </div>
+        
+        <!-- הוספת ילד חדש -->
+        <div class="card">
+            <h2>➕ הוספת ילד חדש</h2>
+            <form id="add-kid-form">
+                <div class="form-group">
+                    <label for="kid-name">שם הילד *</label>
+                    <input type="text" id="kid-name" required placeholder="לדוגמה: דני">
+                </div>
+                
+                <div class="form-group">
+                    <label for="image-before">תמונה מקורית (Before)</label>
+                    <input type="file" id="image-before" accept="image/*">
+                </div>
+                
+                <div class="form-group">
+                    <label for="image-after">תמונה תלת-מימד (After)</label>
+                    <input type="file" id="image-after" accept="image/*">
+                </div>
+                
+                <div class="form-group">
+                    <label for="video-file">סרטון</label>
+                    <input type="file" id="video-file" accept="video/*">
+                </div>
+                
+                <div id="upload-progress" class="progress-bar" style="display: none;">
+                    <div class="progress-fill" style="width: 0%;"></div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">💾 שמור ילד</button>
+            </form>
+        </div>
+        
+        <!-- העלאה מתיקייה -->
+        <div class="card">
+            <h2>📂 העלאה מתיקיית מדיה</h2>
+            <div class="form-group">
+                <label>העלה תיקייה שלמה</label>
+                <input type="file" id="folder-upload" webkitdirectory multiple>
+                <p style="color: #666; margin-top: 10px; font-size: 0.9rem;">
+                    📌 מבנה שמות קבצים: שם.png (before), שם תלת מימד.png (after), שם.mp4 (video)
+                </p>
+            </div>
+            <button onclick="processFolderUpload()" class="btn btn-success">📤 עבד תיקייה</button>
+        </div>
+        
+        <!-- רשימת ילדים -->
+        <div class="card">
+            <h2>👶 רשימת כל הילדים</h2>
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>טוען נתונים...</p>
+            </div>
+            <div id="kids-table-container"></div>
+        </div>
+        
+        <!-- הגדרות לוגואים -->
+        <div class="card">
+            <h2>🖼️ לוגואים</h2>
+            <div class="form-group">
+                <label>לוגו הגן</label>
+                <input type="file" id="logo-garden-file" accept="image/*">
+                <button onclick="uploadLogo('garden')" class="btn btn-secondary">📤 העלה</button>
+            </div>
+            
+            <div class="form-group" style="margin-top: 20px;">
+                <label>לוגו סבא שמעון</label>
+                <input type="file" id="logo-personal-file" accept="image/*">
+                <button onclick="uploadLogo('personal')" class="btn btn-secondary">📤 העלה</button>
+            </div>
+        </div>
+        
+        <!-- חזרה לאתר -->
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="index.html" class="btn btn-secondary">🏠 חזרה לאתר הראשי</a>
+        </div>
+    </div>
+    
+    <script>
+        // ==========================================
+        // Configuration
+        // ==========================================
+        const SUPABASE_URL = 'YOUR_PROJECT_URL';  // https://zqvxvyvtabnypqgscrat.supabase.co
+             const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY'; // sb_publishable_rbpfGQKxQ0yOF2uycKZB4g_FWCdSt80   
+        
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // ==========================================
+        // Toast Notifications
+        // ==========================================
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span style="font-size: 1.5rem;">${type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'}</span>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-100px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        
+        // ==========================================
+        // File Upload Helper
+        // ==========================================
+        async function uploadFile(file, path) {
+            const { data, error } = await supabaseClient.storage
+                .from('kids-media')
+                .upload(path, file, { upsert: true });
+            
+            if (error) throw error;
+            
+            // קבל URL ציבורי
+            const { data: { publicUrl } } = supabaseClient.storage
+                .from('kids-media')
+                .getPublicUrl(path);
+            
+            return publicUrl;
+        }
+        
+        // ==========================================
+        // Add Kid Form
+        // ==========================================
+        document.getElementById('add-kid-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '💾 שומר...';
+            
+            try {
+                const name = document.getElementById('kid-name').value.trim();
+                const beforeFile = document.getElementById('image-before').files[0];
+                const afterFile = document.getElementById('image-after').files[0];
+                const videoFile = document.getElementById('video-file').files[0];
+                
+                let beforeUrl = null, afterUrl = null, videoUrl = null;
+                
+                // העלה קבצים
+                if (beforeFile) {
+                    beforeUrl = await uploadFile(beforeFile, `${name}_before.${beforeFile.name.split('.').pop()}`);
+                }
+                
+                if (afterFile) {
+                    afterUrl = await uploadFile(afterFile, `${name}_after.${afterFile.name.split('.').pop()}`);
+                }
+                
+                if (videoFile) {
+                    videoUrl = await uploadFile(videoFile, `${name}_video.${videoFile.name.split('.').pop()}`);
+                }
+                
+                // שמור בדאטאבייס
+                const { error } = await supabaseClient
+                    .from('kids')
+                    .insert({
+                        name: name,
+                        image_before: beforeUrl,
+                        image_after: afterUrl,
+                        video_url: videoUrl
+                    });
+                
+                if (error) throw error;
+                
+                showToast(`הילד ${name} נוסף בהצלחה!`, 'success');
+                e.target.reset();
+                loadKids();
+                
+            } catch (error) {
+                console.error(error);
+                showToast('שגיאה בהוספת ילד: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 שמור ילד';
+            }
+        });
+        
+        // ==========================================
+        // Folder Upload
+        // ==========================================
+        async function processFolderUpload() {
+            const files = document.getElementById('folder-upload').files;
+            if (!files.length) {
+                showToast('בחר תיקייה תחילה', 'error');
+                return;
+            }
+            
+            showToast('מעבד תיקייה... זה עלול לקחת זמן', 'info');
+            
+            // קבץ קבצים לפי שם ילד
+            const kidFiles = {};
+            
+            for (const file of files) {
+                const fileName = file.name.toLowerCase();
+                const baseName = fileName.split('.')[0].replace(' תלת מימד', '').trim();
+                
+                if (!kidFiles[baseName]) {
+                    kidFiles[baseName] = { name: baseName };
+                }
+                
+                if (fileName.includes('תלת מימד')) {
+                    kidFiles[baseName].after = file;
+                } else if (fileName.endsWith('.mp4')) {
+                    kidFiles[baseName].video = file;
+                } else if (fileName.endsWith('.png') || fileName.endsWith('.jpg')) {
+                    kidFiles[baseName].before = file;
+                }
+            }
+            
+            // העלה כל ילד
+            let count = 0;
+            for (const [kidName, files] of Object.entries(kidFiles)) {
+                try {
+                    let beforeUrl = null, afterUrl = null, videoUrl = null;
+                    
+                    if (files.before) {
+                        beforeUrl = await uploadFile(files.before, `${kidName}_before.${files.before.name.split('.').pop()}`);
+                    }
+                    if (files.after) {
+                        afterUrl = await uploadFile(files.after, `${kidName}_after.${files.after.name.split('.').pop()}`);
+                    }
+                    if (files.video) {
+                        videoUrl = await uploadFile(files.video, `${kidName}_video.${files.video.name.split('.').pop()}`);
+                    }
+                    
+                    await supabaseClient.from('kids').insert({
+                        name: kidName,
+                        image_before: beforeUrl,
+                        image_after: afterUrl,
+                        video_url: videoUrl
+                    });
+                    
+                    count++;
+                } catch (error) {
+                    console.error(`Error uploading ${kidName}:`, error);
+                }
+            }
+            
+            showToast(`הועלו ${count} ילדים בהצלחה!`, 'success');
+            loadKids();
+        }
+        
+        // ==========================================
+        // Load Kids Table
+        // ==========================================
+        async function loadKids() {
+            const loading = document.getElementById('loading');
+            const container = document.getElementById('kids-table-container');
+            
+            loading.style.display = 'block';
+            container.innerHTML = '';
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('kids')
+                    .select('*')
+                    .order('name', { ascending: true });
+                
+                if (error) throw error;
+                
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">אין ילדים עדיין. הוסף את הראשון!</p>';
+                    return;
+                }
+                
+                let html = '<table><thead><tr><th>שם</th><th>תמונה לפני</th><th>תמונה אחרי</th><th>וידאו</th><th>פעולות</th></tr></thead><tbody>';
+                
+                data.forEach(kid => {
+                    html += `
+                        <tr>
+                            <td><strong>${kid.name}</strong></td>
+                            <td>${kid.image_before ? '<img src="' + kid.image_before + '" class="preview-img">' : '❌'}</td>
+                            <td>${kid.image_after ? '<img src="' + kid.image_after + '" class="preview-img">' : '❌'}</td>
+                            <td>${kid.video_url ? '✅' : '❌'}</td>
+                            <td>
+                                <button class="btn btn-danger" onclick="deleteKid('${kid.id}', '${kid.name}')">🗑️ מחק</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                container.innerHTML = html;
+                
+            } catch (error) {
+                console.error(error);
+                showToast('שגיאה בטעינת ילדים', 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+        
+        // ==========================================
+        // Delete Kid
+        // ==========================================
+        async function deleteKid(id, name) {
+            if (!confirm(`בטוח שרוצה למחוק את ${name}?`)) return;
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('kids')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                showToast(`${name} נמחק בהצלחה`, 'success');
+                loadKids();
+                
+            } catch (error) {
+                console.error(error);
+                showToast('שגיאה במחיקה', 'error');
+            }
+        }
+        
+        // ==========================================
+        // Upload Logo
+        // ==========================================
+        async function uploadLogo(type) {
+            const fileInput = document.getElementById(`logo-${type}-file`);
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showToast('בחר קובץ תחילה', 'error');
+                return;
+            }
+            
+            try {
+                const url = await uploadFile(file, `logo_${type}.${file.name.split('.').pop()}`);
+                
+                const field = type === 'garden' ? 'logo_garden' : 'logo_personal';
+                
+                const { error } = await supabaseClient
+                    .from('settings')
+                    .update({ [field]: url })
+                    .eq('id', (await supabaseClient.from('settings').select('id').single()).data.id);
+                
+                if (error) throw error;
+                
+                showToast('לוגו עודכן!', 'success');
+                
+            } catch (error) {
+                console.error(error);
+                showToast('שגיאה בהעלאת לוגו', 'error');
+            }
+        }
+        
+        // ==========================================
+        // Initialize
+        // ==========================================
+        loadKids();
+    </script>
+</body>
+</html>
